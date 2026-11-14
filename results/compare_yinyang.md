@@ -1,12 +1,20 @@
-| run         | method      | variant                            |   lam |   prune |   acc | spike_match   |   zero |   pow2 |   other |   area |   d_acc_pts |   area_saving_% |
-|:------------|:------------|:-----------------------------------|------:|--------:|------:|:--------------|-------:|-------:|--------:|-------:|------------:|----------------:|
-| yinyang_qat | qat         | qat                                |   0   |     0   |  80   | True          |     27 |    232 |     637 | 4261.7 |         0   |             0   |
-| yy_eq2_1    | qat_silicon | qat_silicon (full Eq. 2)           |   1   |     0   |  79.4 | True          |     53 |    332 |     511 | 4197.5 |        -0.6 |             1.5 |
-| yy_eq2_3    | qat_silicon | qat_silicon (full Eq. 2)           |   3   |     0   |  80.7 | True          |     81 |    361 |     454 | 4219.7 |         0.7 |             1   |
-| yy_l1_0.3   | qat_silicon | qat_silicon (zero term only, c1=0) |   0.3 |     0   |  81.1 | True          |    111 |    185 |     600 | 3522   |         1.1 |            17.4 |
-| yy_l1_1     | qat_silicon | qat_silicon (zero term only, c1=0) |   1   |     0   |  82.2 | True          |    143 |    200 |     553 | 3468.7 |         2.2 |            18.6 |
-| yy_l1_10    | qat_silicon | qat_silicon (zero term only, c1=0) |  10   |     0   |  74.2 | True          |    319 |    173 |     404 | 2932.9 |        -5.8 |            31.2 |
-| yy_l1_3     | qat_silicon | qat_silicon (zero term only, c1=0) |   3   |     0   |  80.4 | True          |    204 |    199 |     493 | 3312.1 |         0.4 |            22.3 |
-| yy_prune0.5 | qat_prune   | qat_prune                          |   0   |     0.5 |  73.1 | True          |    448 |     73 |     375 | 3568.3 |        -6.9 |            16.3 |
-| yy_prune0.7 | qat_prune   | qat_prune                          |   0   |     0.7 |  60.6 | True          |    627 |     32 |     237 | 2587.1 |       -19.4 |            39.3 |
-| yy_prune0.9 | qat_prune   | qat_prune                          |   0   |     0.9 |  36.6 | True          |    805 |      6 |      85 | 1029.3 |       -43.4 |            75.8 |
+| run         | method      | variant                                  |   lam |   lam_p2 | p2_zero   |   prune |   acc | spike_match   |   zero |   pow2 |   other |   area |   d_acc_pts |   area_saving_% |
+|:------------|:------------|:-----------------------------------------|------:|---------:|:----------|--------:|------:|:--------------|-------:|-------:|--------:|-------:|------------:|----------------:|
+| yinyang_qat | qat         | qat                                      |   0   |    -1    | False     |     0   |  80   | True          |     27 |    232 |     637 | 4261.7 |         0   |             0   |
+| yy_eq2_1    | qat_silicon | qat_silicon (full Eq. 2, λ1=λ0)          |   1   |    -1    | False     |     0   |  79.4 | True          |     53 |    332 |     511 | 4197.5 |        -0.6 |             1.5 |
+| yy_eq2_3    | qat_silicon | qat_silicon (full Eq. 2, λ1=λ0)          |   3   |    -1    | False     |     0   |  80.7 | True          |     81 |    361 |     454 | 4219.7 |         0.7 |             1   |
+| yy_l1_0.3   | qat_silicon | qat_silicon (zero term only)             |   0.3 |    -1    | False     |     0   |  81.1 | True          |    111 |    185 |     600 | 3522   |         1.1 |            17.4 |
+| yy_l1_1     | qat_silicon | qat_silicon (zero term only)             |   1   |    -1    | False     |     0   |  82.2 | True          |    143 |    200 |     553 | 3468.7 |         2.2 |            18.6 |
+| yy_l1_10    | qat_silicon | qat_silicon (zero term only)             |  10   |    -1    | False     |     0   |  74.2 | True          |    319 |    173 |     404 | 2932.9 |        -5.8 |            31.2 |
+| yy_l1_3     | qat_silicon | qat_silicon (zero term only)             |   3   |    -1    | False     |     0   |  80.4 | True          |    204 |    199 |     493 | 3312.1 |         0.4 |            22.3 |
+| yy_l2_0.03  | qat_silicon | qat_silicon (λ0=3, sweep λ1)             |   3   |     0.03 | False     |     0   |  83.8 | True          |    199 |    192 |     505 | 3273   |         3.8 |            23.2 |
+| yy_l2_0.1   | qat_silicon | qat_silicon (λ0=3, sweep λ1)             |   3   |     0.1  | False     |     0   |  74.6 | True          |    200 |    192 |     504 | 3297.7 |        -5.4 |            22.6 |
+| yy_l2_0.3   | qat_silicon | qat_silicon (λ0=3, sweep λ1)             |   3   |     0.3  | False     |     0   |  82   | True          |    190 |    204 |     502 | 3350.1 |         2   |            21.4 |
+| yy_l2_1     | qat_silicon | qat_silicon (λ0=3, sweep λ1)             |   3   |     1    | False     |     0   |  80.8 | True          |    131 |    212 |     553 | 3944.3 |         0.8 |             7.4 |
+| yy_l2z_0.03 | qat_silicon | qat_silicon (λ0=3, sweep λ1, p2 incl. 0) |   3   |     0.03 | True      |     0   |  80.3 | True          |    205 |    186 |     505 | 3300.7 |         0.3 |            22.5 |
+| yy_l2z_0.1  | qat_silicon | qat_silicon (λ0=3, sweep λ1, p2 incl. 0) |   3   |     0.1  | True      |     0   |  83.1 | True          |    203 |    189 |     504 | 3284.2 |         3.1 |            22.9 |
+| yy_l2z_0.3  | qat_silicon | qat_silicon (λ0=3, sweep λ1, p2 incl. 0) |   3   |     0.3  | True      |     0   |  82.6 | True          |    189 |    198 |     509 | 3290   |         2.6 |            22.8 |
+| yy_l2z_1    | qat_silicon | qat_silicon (λ0=3, sweep λ1, p2 incl. 0) |   3   |     1    | True      |     0   |  82.1 | True          |    131 |    213 |     552 | 3945.7 |         2.1 |             7.4 |
+| yy_prune0.5 | qat_prune   | qat_prune                                |   0   |    -1    | False     |     0.5 |  73.1 | True          |    448 |     73 |     375 | 3568.3 |        -6.9 |            16.3 |
+| yy_prune0.7 | qat_prune   | qat_prune                                |   0   |    -1    | False     |     0.7 |  60.6 | True          |    627 |     32 |     237 | 2587.1 |       -19.4 |            39.3 |
+| yy_prune0.9 | qat_prune   | qat_prune                                |   0   |    -1    | False     |     0.9 |  36.6 | True          |    805 |      6 |      85 | 1029.3 |       -43.4 |            75.8 |

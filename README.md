@@ -245,6 +245,36 @@ What these runs show:
 Caveats: one seed per point, so differences of about ±2 accuracy points are noise. These are synthesis areas, not
 post-layout areas. Yin-Yang is the bring-up dataset, and the 128 neurons dominate its area.
 
+### Separate lambdas for the two Eq. 2 terms (Yin-Yang)
+
+The two terms now have separate weights: `train.lam` (λ0, zero term) and `train.lam_p2` (λ1, power-of-two term).
+`train.p2_zero=true` replaces `nearest_pow2`, which can return fractional powers such as 0.25 that integer hardware
+can't use, with `nearest_cheap`, which returns the nearest of 0, ±1, ±2, ±4, …. In these runs λ0 = 3 is fixed and
+λ1 is swept (`scripts/sweep_yinyang_lam2.sh`).
+
+| λ1 | p2 target | Accuracy | Zero / pow2 / other | Area (µm²) | Saving |
+|---|---|---|---|---|---|
+| 0 (zero term only, `yy_l1_3`) | — | 80.4% | 204 / 199 / 493 | 3,312 | 22.3% |
+| 0.03 | original | 83.8% | 199 / 192 / 505 | 3,273 | 23.2% |
+| 0.1 | original | 74.6% | 200 / 192 / 504 | 3,298 | 22.6% |
+| 0.3 | original | 82.0% | 190 / 204 / 502 | 3,350 | 21.4% |
+| 1 | original | 80.8% | 131 / 212 / 553 | 3,944 | 7.4% |
+| 0.03 | incl. 0 | 80.3% | 205 / 186 / 505 | 3,301 | 22.5% |
+| 0.1 | incl. 0 | 83.1% | 203 / 189 / 504 | 3,284 | 22.9% |
+| 0.3 | incl. 0 | 82.6% | 189 / 198 / 509 | 3,290 | 22.8% |
+| 1 | incl. 0 | 82.1% | 131 / 213 / 552 | 3,946 | 7.4% |
+
+What these runs show:
+- Separate lambdas stop the power-of-two term from cancelling the zero savings. With λ1 ≤ 0.3, area stays at
+  21–23% below baseline, against 1–1.5% when λ1 = λ0. They don't add savings beyond the zero term alone.
+- At λ1 = 1 the savings drop to 7% with either p2 target. The power-of-two term holds weights near ±1 that the
+  zero term would otherwise drive to 0. A power-of-two weight saves about 0.4 µm² (1.04 − 0.65) relative to an
+  "other" weight, while a zero saves about 1 µm² and can remove a whole neuron, so the trade isn't worth it.
+- The zero-aware target (`p2_zero`) gives slightly higher accuracy at the same area for λ1 ≤ 0.3. The ±5-point
+  accuracy spread at equal weight counts (e.g. 74.6% vs. 83.8%) shows that single-seed accuracy is noisy.
+- Ideas not tried yet: turn the power-of-two term on only in the last epochs, after the zeros have settled, or
+  apply it only to weights with |w| ≥ 2.
+
 ### Calibration finding (Eq. 2)
 
 `snn2gds.calibrate` synthesized 16 single-layer test designs (32 inputs × 16 neurons, mixed zero / power-of-two /
