@@ -1,0 +1,9 @@
+# Flow bring-up: 4 -> 128 -> 3, trains + synthesizes in minutes.
+name: yinyang_qat
+dataset: yinyang
+T: 100
+hidden: 128
+n_verify: 200
+quant: {bw: 8, f: 4, bu: 16, k: 5, theta: 1.0}   # beta = 1 - 2^-5
+train: {epochs: 30, batch_size: 128, lr: 0.002, method: qat, init_gain: 6.0}
+hw: {clk_period_ps: 1000, core_utilization: 40, place_density: 0.6}

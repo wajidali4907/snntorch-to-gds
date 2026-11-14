@@ -1,0 +1,10 @@
+# install torch first for your CUDA version, e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+torch>=2.4
+snntorch==1.0.0
+tonic>=1.5
+numpy
+pyyaml
+matplotlib
+pandas
+tabulate
