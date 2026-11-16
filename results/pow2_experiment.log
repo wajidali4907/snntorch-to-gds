@@ -1,0 +1,129 @@
+wrote RTL to runs/p2exp_s0_f050/rtl
+wrote RTL to runs/p2exp_s0_f000/rtl
+wrote RTL to runs/p2exp_s0_f025/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f050/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f050/orfs/work NUM_CORES=2 synth
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f025/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f025/orfs/work NUM_CORES=2 synth
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f000/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f000/orfs/work NUM_CORES=2 synth
+wrote RTL to runs/p2exp_s0_f075/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f075/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f075/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 701.60418,
+ "synth_cells": 5717,
+ "clk_period_ps": 1000.0
+}
+p2exp_s0_f075: 701.6 um^2
+wrote RTL to runs/p2exp_s0_f100/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f100/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s0_f100/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 763.75872,
+ "synth_cells": 6320,
+ "clk_period_ps": 1000.0
+}
+p2exp_s0_f050: 763.8 um^2
+wrote RTL to runs/p2exp_s1_f000/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f000/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f000/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 799.69842,
+ "synth_cells": 6610,
+ "clk_period_ps": 1000.0
+}
+p2exp_s0_f025: 799.7 um^2
+wrote RTL to runs/p2exp_s1_f025/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f025/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f025/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 822.92436,
+ "synth_cells": 6796,
+ "clk_period_ps": 1000.0
+}
+p2exp_s0_f000: 822.9 um^2
+wrote RTL to runs/p2exp_s1_f050/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f050/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f050/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 651.85722,
+ "synth_cells": 5282,
+ "clk_period_ps": 1000.0
+}
+p2exp_s0_f100: 651.9 um^2
+wrote RTL to runs/p2exp_s1_f075/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f075/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f075/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 829.76238,
+ "synth_cells": 6860,
+ "clk_period_ps": 1000.0
+}
+p2exp_s1_f000: 829.8 um^2
+wrote RTL to runs/p2exp_s1_f100/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f100/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s1_f100/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 754.93782,
+ "synth_cells": 6232,
+ "clk_period_ps": 1000.0
+}
+p2exp_s1_f050: 754.9 um^2
+wrote RTL to runs/p2exp_s2_f000/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f000/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f000/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 786.27024,
+ "synth_cells": 6464,
+ "clk_period_ps": 1000.0
+}
+p2exp_s1_f025: 786.3 um^2
+wrote RTL to runs/p2exp_s2_f025/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f025/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f025/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 710.25012,
+ "synth_cells": 5819,
+ "clk_period_ps": 1000.0
+}
+p2exp_s1_f075: 710.3 um^2
+wrote RTL to runs/p2exp_s2_f050/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f050/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f050/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 652.48416,
+ "synth_cells": 5225,
+ "clk_period_ps": 1000.0
+}
+p2exp_s1_f100: 652.5 um^2
+wrote RTL to runs/p2exp_s2_f075/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f075/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f075/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 796.98654,
+ "synth_cells": 6643,
+ "clk_period_ps": 1000.0
+}
+p2exp_s2_f025: 797.0 um^2
+wrote RTL to runs/p2exp_s2_f100/rtl
+make -C /home/wajid/OpenROAD-flow-scripts/flow DESIGN_CONFIG=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f100/orfs/config.mk WORK_HOME=/home/wajid/Snntorch_to_asic/runs/p2exp_s2_f100/orfs/work NUM_CORES=2 synth
+{
+ "synth_area_um2": 828.10026,
+ "synth_cells": 6854,
+ "clk_period_ps": 1000.0
+}
+p2exp_s2_f000: 828.1 um^2
+{
+ "synth_area_um2": 779.301,
+ "synth_cells": 6447,
+ "clk_period_ps": 1000.0
+}
+p2exp_s2_f050: 779.3 um^2
+{
+ "synth_area_um2": 723.0951,
+ "synth_cells": 5955,
+ "clk_period_ps": 1000.0
+}
+p2exp_s2_f075: 723.1 um^2
+{
+ "synth_area_um2": 660.44484,
+ "synth_cells": 5332,
+ "clk_period_ps": 1000.0
+}
+p2exp_s2_f100: 660.4 um^2
+Layer 16x32, 8-bit, 50% zeros, |w| in [3,63], clock 1000.0 ps, P = fully parallel, seeds [0, 1, 2]. Change % is relative to pow2_frac = 0.
+
+|   pow2_frac |   area_mean |   area_std |   measured |   measured_std |   eq2_calibrated |   eq2_c1_eq_c0 |   count_model |
+|------------:|------------:|-----------:|-----------:|---------------:|-----------------:|---------------:|--------------:|
+|        0    |      826.93 |       3.57 |       0    |           0    |             0    |           0    |          0    |
+|        0.25 |      794.32 |       7.1  |      -3.94 |           1.22 |            14.96 |         -11.98 |         -3.33 |
+|        0.5  |      766    |      12.34 |      -7.37 |           1.57 |            30.81 |         -24.06 |         -6.66 |
+|        0.75 |      711.65 |      10.81 |     -13.94 |           1.11 |            44.45 |         -34.99 |         -9.99 |
+|        1    |      654.93 |       4.79 |     -20.8  |           0.56 |            60.02 |         -46.72 |        -13.32 |

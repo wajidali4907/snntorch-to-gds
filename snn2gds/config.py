@@ -28,10 +28,15 @@ class TrainCfg:
     lam: float = 0.0             # qat_silicon: lambda in Eq. (2) (weight of the zero term c0*|w|)
     lam_p2: float = -1.0         # qat_silicon: separate lambda for the pow2 term c1*(w-p2)^2; <0 => same as lam
     p2_zero: bool = False        # pow2 target includes 0 and only integer powers (nearest_cheap)
+    p2_mode: str = "sq"          # pow2 term: "sq" = (w - p2(w))^2 (Eq. 2 as proposed);
+                                 # "log" = sin^2(pi*log2|w|): 0 at powers of two, 1 midway, scale-free
+                                 #         (c1 is then um^2 per fully non-pow2 weight)
     c0: float = 1.0              # qat_silicon: area cost per |w|  (calibrated)
     c1: float = 1.0              # qat_silicon: area cost of distance to power of two (calibrated)
     surrogate_slope: float = 5.0
     init_gain: float = 1.0       # multiply default nn.Linear init (sparse inputs need larger weights)
+    val_frac: float = 0.0        # >0: hold out this fraction of the TRAIN set for tuning (logs val_acc,
+                                 #     the test set is not used during training)
 
 
 @dataclass
