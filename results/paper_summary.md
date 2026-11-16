@@ -4,11 +4,11 @@ All accuracies are from the bit-exact integer model (identical to RTL simulation
 
 ## Unified results (one row per dataset; Δacc in points, saving vs. QAT baseline)
 
-| dataset   |   baseline_acc |   baseline_area |   prune_Δacc |   prune_saving_% |   L1_Δacc |   L1_saving_% |   L1+log_Δacc |   L1+log_saving_% |   tuned_baseline_acc |   tuned_prune0.5_Δacc |   tuned_prune0.5_saving_% |   tuned_l1_1_Δacc |   tuned_l1_1_saving_% |   tuned_l1_3_Δacc |   tuned_l1_3_saving_% |   retuned_baseline_acc |   retuned_prune0.5_Δacc |   retuned_prune0.5_saving_% |   retuned_l1_1_Δacc |   retuned_l1_1_saving_% |   retuned_l1_3_Δacc |   retuned_l1_3_saving_% | L1+log_variant   |
-|:----------|---------------:|----------------:|-------------:|-----------------:|----------:|--------------:|--------------:|------------------:|---------------------:|----------------------:|--------------------------:|------------------:|----------------------:|------------------:|----------------------:|-----------------------:|------------------------:|----------------------------:|--------------------:|------------------------:|--------------------:|------------------------:|:-----------------|
-| yinyang   |           81.3 |          4286.5 |         -5.3 |             16.7 |       0.1 |          20.4 |          -0.2 |               1.4 |                 87.5 |                  -6.2 |                      20.8 |              -2.9 |                  14.6 |              -9.9 |                  24.5 |                   83.7 |                    -6.5 |                        18.7 |                -2.6 |                    17.7 |                -3.3 |                    23.9 | log-pow2 λp=0.3  |
-| braille   |           58.2 |          6645.6 |         -2.2 |             15   |      -4.5 |          40.9 |          -3.1 |              33.7 |                 60   |                  -1.7 |                      19.5 |              -0.2 |                  37.8 |              -0.7 |                  43.8 |                  nan   |                   nan   |                       nan   |               nan   |                   nan   |               nan   |                   nan   | log-pow2 λp=0.3  |
-| ntidigits |           69.9 |          7461.6 |         -2.3 |             13.6 |      -1.1 |          27   |          -0.8 |              23.1 |                 71   |                  -0   |                      21.3 |              -0   |                  38.7 |               0.6 |                  49.6 |                  nan   |                   nan   |                       nan   |               nan   |                   nan   |               nan   |                   nan   | log-pow2 λp=0.3  |
+| dataset   |   baseline_acc |   baseline_area |   prune_Δacc |   prune_saving_% |   L1_Δacc |   L1_saving_% |   L1+log_Δacc |   L1+log_saving_% |   tuned_baseline_acc |   tuned_float_Δacc |   tuned_float_saving_% |   tuned_prune0.5_Δacc |   tuned_prune0.5_saving_% |   tuned_l1_1_Δacc |   tuned_l1_1_saving_% |   tuned_l1_3_Δacc |   tuned_l1_3_saving_% |   retuned_baseline_acc |   retuned_float_Δacc |   retuned_float_saving_% |   retuned_prune0.5_Δacc |   retuned_prune0.5_saving_% |   retuned_l1_1_Δacc |   retuned_l1_1_saving_% |   retuned_l1_3_Δacc |   retuned_l1_3_saving_% | L1+log_variant   |
+|:----------|---------------:|----------------:|-------------:|-----------------:|----------:|--------------:|--------------:|------------------:|---------------------:|-------------------:|-----------------------:|----------------------:|--------------------------:|------------------:|----------------------:|------------------:|----------------------:|-----------------------:|---------------------:|-------------------------:|------------------------:|----------------------------:|--------------------:|------------------------:|--------------------:|------------------------:|:-----------------|
+| yinyang   |           81.3 |          4286.5 |         -5.3 |             16.7 |       0.1 |          20.4 |          -0.2 |               1.4 |                 87.5 |              -19.3 |                    0.2 |                  -6.2 |                      20.8 |              -2.9 |                  14.6 |              -9.9 |                  24.5 |                   83.7 |                -14.6 |                     -0.3 |                    -6.5 |                        18.7 |                -2.6 |                    17.7 |                -3.3 |                    23.9 | log-pow2 λp=0.3  |
+| braille   |           58.2 |          6645.6 |         -2.2 |             15   |      -4.5 |          40.9 |          -3.1 |              33.7 |                 60   |               -9.5 |                   -0.6 |                  -1.7 |                      19.5 |              -0.2 |                  37.8 |              -0.7 |                  43.8 |                  nan   |                nan   |                    nan   |                   nan   |                       nan   |               nan   |                   nan   |               nan   |                   nan   | log-pow2 λp=0.3  |
+| ntidigits |           69.9 |          7461.6 |         -2.3 |             13.6 |      -1.1 |          27   |          -0.8 |              23.1 |                 71   |               -1.9 |                    0.7 |                  -0   |                      21.3 |              -0   |                  38.7 |               0.6 |                  49.6 |                  nan   |                nan   |                    nan   |                   nan   |                       nan   |               nan   |                   nan   |               nan   |                   nan   | log-pow2 λp=0.3  |
 
 ## yinyang
 
@@ -60,21 +60,23 @@ All accuracies are from the bit-exact integer model (identical to RTL simulation
 
 ### Main comparison with TUNED baselines (mean over seeds; vs. tuned QAT)
 
-| variant                     |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
-|:----------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
-| tuned: QAT baseline         |   3 |  87.5 |      4.1 |        0   |   4459 |        35 |             0   |      1.6 |           14.4 | all           |
-| tuned: QAT + prune 50%      |   3 |  81.3 |      2.6 |       -6.2 |   3533 |        33 |            20.8 |     50   |            5.7 | all           |
-| tuned: silicon-aware L1 λ=1 |   3 |  84.7 |      4.4 |       -2.9 |   3809 |       172 |            14.6 |     21.5 |           18.2 | all           |
-| tuned: silicon-aware L1 λ=3 |   3 |  77.7 |      4.6 |       -9.9 |   3365 |       350 |            24.5 |     35.3 |           22.1 | all           |
+| variant                                  |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
+|:-----------------------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
+| tuned: no QAT (float train, round after) |   3 |  68.2 |      5.3 |      -19.3 |   4449 |        19 |             0.2 |      1.5 |           15.4 | all           |
+| tuned: QAT baseline                      |   3 |  87.5 |      4.1 |        0   |   4459 |        35 |             0   |      1.6 |           14.4 | all           |
+| tuned: QAT + prune 50%                   |   3 |  81.3 |      2.6 |       -6.2 |   3533 |        33 |            20.8 |     50   |            5.7 | all           |
+| tuned: silicon-aware L1 λ=1              |   3 |  84.7 |      4.4 |       -2.9 |   3809 |       172 |            14.6 |     21.5 |           18.2 | all           |
+| tuned: silicon-aware L1 λ=3              |   3 |  77.7 |      4.6 |       -9.9 |   3365 |       350 |            24.5 |     35.3 |           22.1 | all           |
 
 ### Main comparison with MULTI-SEED re-tuned baseline (mean over seeds; vs. re-tuned QAT)
 
-| variant                        |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
-|:-------------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
-| re-tuned: QAT baseline         |   3 |  83.7 |      1.2 |        0   |   4312 |        22 |             0   |      2.4 |           22.6 | all           |
-| re-tuned: QAT + prune 50%      |   3 |  77.2 |      1.4 |       -6.5 |   3505 |        11 |            18.7 |     50   |            8.9 | all           |
-| re-tuned: silicon-aware L1 λ=1 |   3 |  81.1 |      2   |       -2.6 |   3548 |        78 |            17.7 |     18.9 |           25.6 | all           |
-| re-tuned: silicon-aware L1 λ=3 |   3 |  80.4 |      1.7 |       -3.3 |   3280 |       134 |            23.9 |     30.1 |           27.6 | all           |
+| variant                                     |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
+|:--------------------------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
+| re-tuned: no QAT (float train, round after) |   3 |  69.1 |      3.8 |      -14.6 |   4323 |        16 |            -0.3 |      2.8 |           23.4 | all           |
+| re-tuned: QAT baseline                      |   3 |  83.7 |      1.2 |        0   |   4312 |        22 |             0   |      2.4 |           22.6 | all           |
+| re-tuned: QAT + prune 50%                   |   3 |  77.2 |      1.4 |       -6.5 |   3505 |        11 |            18.7 |     50   |            8.9 | all           |
+| re-tuned: silicon-aware L1 λ=1              |   3 |  81.1 |      2   |       -2.6 |   3548 |        78 |            17.7 |     18.9 |           25.6 | all           |
+| re-tuned: silicon-aware L1 λ=3              |   3 |  80.4 |      1.7 |       -3.3 |   3280 |       134 |            23.9 |     30.1 |           27.6 | all           |
 
 ## braille
 
@@ -123,12 +125,13 @@ All accuracies are from the bit-exact integer model (identical to RTL simulation
 
 ### Main comparison with TUNED baselines (mean over seeds; vs. tuned QAT)
 
-| variant                     |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
-|:----------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
-| tuned: QAT baseline         |   3 |  60   |      0.9 |        0   |   6999 |        55 |             0   |     18.2 |           71.5 | all           |
-| tuned: QAT + prune 50%      |   3 |  58.3 |      1   |       -1.7 |   5634 |        82 |            19.5 |     50.4 |           55.2 | all           |
-| tuned: silicon-aware L1 λ=1 |   3 |  59.9 |      0.7 |       -0.2 |   4354 |       176 |            37.8 |     52.3 |           69.9 | all           |
-| tuned: silicon-aware L1 λ=3 |   3 |  59.3 |      1.1 |       -0.7 |   3932 |       213 |            43.8 |     57.6 |           70.7 | all           |
+| variant                                  |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
+|:-----------------------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
+| tuned: no QAT (float train, round after) |   3 |  50.5 |      1.7 |       -9.5 |   7037 |        19 |            -0.6 |     17.4 |           73.9 | all           |
+| tuned: QAT baseline                      |   3 |  60   |      0.9 |        0   |   6999 |        55 |             0   |     18.2 |           71.5 | all           |
+| tuned: QAT + prune 50%                   |   3 |  58.3 |      1   |       -1.7 |   5634 |        82 |            19.5 |     50.4 |           55.2 | all           |
+| tuned: silicon-aware L1 λ=1              |   3 |  59.9 |      0.7 |       -0.2 |   4354 |       176 |            37.8 |     52.3 |           69.9 | all           |
+| tuned: silicon-aware L1 λ=3              |   3 |  59.3 |      1.1 |       -0.7 |   3932 |       213 |            43.8 |     57.6 |           70.7 | all           |
 
 ## ntidigits
 
@@ -177,12 +180,13 @@ All accuracies are from the bit-exact integer model (identical to RTL simulation
 
 ### Main comparison with TUNED baselines (mean over seeds; vs. tuned QAT)
 
-| variant                     |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
-|:----------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
-| tuned: QAT baseline         |   3 |  71   |      0.6 |        0   |   8399 |        41 |             0   |     15.4 |           65.2 | all           |
-| tuned: QAT + prune 50%      |   3 |  71   |      1.8 |       -0   |   6609 |        24 |            21.3 |     50.3 |           42.8 | all           |
-| tuned: silicon-aware L1 λ=1 |   3 |  71   |      0.6 |       -0   |   5151 |       262 |            38.7 |     51   |           68.1 | all           |
-| tuned: silicon-aware L1 λ=3 |   3 |  71.6 |      0.6 |        0.6 |   4231 |       369 |            49.6 |     61.7 |           66.2 | all           |
+| variant                                  |   n |   acc |   acc_sd |   Δacc_pts |   area |   area_sd |   area_saving_% |   zero_% |   pow2_%_of_nz | spike_match   |
+|:-----------------------------------------|----:|------:|---------:|-----------:|-------:|----------:|----------------:|---------:|---------------:|:--------------|
+| tuned: no QAT (float train, round after) |   3 |  69.1 |      1.5 |       -1.9 |   8338 |        19 |             0.7 |     15.1 |           65.2 | all           |
+| tuned: QAT baseline                      |   3 |  71   |      0.6 |        0   |   8399 |        41 |             0   |     15.4 |           65.2 | all           |
+| tuned: QAT + prune 50%                   |   3 |  71   |      1.8 |       -0   |   6609 |        24 |            21.3 |     50.3 |           42.8 | all           |
+| tuned: silicon-aware L1 λ=1              |   3 |  71   |      0.6 |       -0   |   5151 |       262 |            38.7 |     51   |           68.1 | all           |
+| tuned: silicon-aware L1 λ=3              |   3 |  71.6 |      0.6 |        0.6 |   4231 |       369 |            49.6 |     61.7 |           66.2 | all           |
 
 ## Controlled power-of-two test (0% zeros)
 

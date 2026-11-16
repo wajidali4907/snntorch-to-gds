@@ -22,8 +22,11 @@ class QLinear(nn.Linear):
         super().__init__(n_in, n_out, bias=False)
         self.bw, self.f = bw, f
         self.register_buffer("mask", torch.ones(n_out, n_in))
+        self.fake_quant = True
 
     def qweight(self):
+        if not self.fake_quant:
+            return self.weight * self.mask
         return quantize_weight(self.weight * self.mask, self.bw, self.f)
 
     def forward(self, x):
@@ -42,11 +45,12 @@ class SNN(nn.Module):
         self.lifs = nn.ModuleList()
         for a, b in zip(sizes[:-1], sizes[1:]):
             self.fcs.append(QLinear(a, b, q.bw, q.f))
+            self.fcs[-1].fake_quant = cfg.train.qat
             with torch.no_grad():
                 self.fcs[-1].weight.mul_(cfg.train.init_gain)
             self.lifs.append(snn.Leaky(beta=beta, threshold=q.theta, learn_beta=False,
                                        learn_threshold=False, reset_mechanism="subtract",
-                                       spike_grad=sg, state_quant=sq, init_hidden=False))
+                                       spike_grad=sg, state_quant=sq if cfg.train.qat else False, init_hidden=False))
 
     def forward(self, x):
         """x: [T, B, N_in] -> list of per-layer spike tensors [T, B, N_l]."""

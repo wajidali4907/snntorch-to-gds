@@ -37,7 +37,7 @@ def tune_overrides(h):
 
 
 TUNED_FILE = "results/tuned.json"     # written by scripts/run_all.py after the tuning grid
-TUNED_VARIANTS = ("qat", "prune0.5", "l1_1", "l1_3")
+TUNED_VARIANTS = ("float", "qat", "prune0.5", "l1_1", "l1_3")   # float = no QAT (post-training quant.)
 
 # ---- re-tune (Yin-Yang): the seed-0 pick (lr 0.005, gain 12) was unstable on seeds 1-2 (baseline sd 4 pts).
 # Same grid, but every point trained with 3 seeds; pick by the MEAN validation accuracy over seeds.
@@ -61,6 +61,8 @@ def overrides(variant: str, cp2: float | None = None, ds: str | None = None, roo
         return tuned_overrides(ds, root) + overrides(variant[2:], cp2)
     if variant == "qat":
         return []
+    if variant == "float":
+        return ["train.qat=false"]
     if variant.startswith("prune"):
         return ["train.method=qat_prune", f"train.prune_frac={variant[5:]}"]
     if variant.startswith("l1_"):

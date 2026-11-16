@@ -34,6 +34,8 @@ class TrainCfg:
     c0: float = 1.0              # qat_silicon: area cost per |w|  (calibrated)
     c1: float = 1.0              # qat_silicon: area cost of distance to power of two (calibrated)
     surrogate_slope: float = 5.0
+    qat: bool = True             # False: train in float (no fake-quant of weights or membrane), round to
+                                 #        integers only at export (post-training quantization baseline)
     init_gain: float = 1.0       # multiply default nn.Linear init (sparse inputs need larger weights)
     val_frac: float = 0.0        # >0: hold out this fraction of the TRAIN set for tuning (logs val_acc,
                                  #     the test set is not used during training)

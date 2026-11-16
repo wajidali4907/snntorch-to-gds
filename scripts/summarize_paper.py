@@ -89,7 +89,7 @@ def dataset_section(ds):
         d = pd.DataFrame(g)[["run", "acc", "area", "grt_stdcell", "grt_core", "grt_wns"]]
         d["grt_saving_%"] = [0.0, 100 * (1 - d.grt_stdcell[1] / d.grt_stdcell[0])]
         out += ["### After placement + global route (seed 0)", "", d.round(1).to_markdown(index=False), ""]
-    tl = {"qat": "QAT baseline", "prune0.5": "QAT + prune 50%", "l1_1": "silicon-aware L1 λ=1",
+    tl = {"float": "no QAT (float train, round after)", "qat": "QAT baseline", "prune0.5": "QAT + prune 50%", "l1_1": "silicon-aware L1 λ=1",
           "l1_3": "silicon-aware L1 λ=3"}
     tb = group(ds, "T_qat")
     if tb:
@@ -109,14 +109,14 @@ def dataset_section(ds):
             uni[f"{k}_saving_%"] = 100 * (1 - x["area"] / ba)
     if tb:
         uni["tuned_baseline_acc"] = tb["acc"]
-        for v in ("prune0.5", "l1_1", "l1_3"):
+        for v in ("float", "prune0.5", "l1_1", "l1_3"):
             x = group(ds, f"T_{v}")
             if x:
                 uni[f"tuned_{v}_Δacc"] = x["acc"] - tb["acc"]
                 uni[f"tuned_{v}_saving_%"] = 100 * (1 - x["area"] / tb["area"])
     if tb2:
         uni["retuned_baseline_acc"] = tb2["acc"]
-        for v in ("prune0.5", "l1_1", "l1_3"):
+        for v in ("float", "prune0.5", "l1_1", "l1_3"):
             x = group(ds, f"T2_{v}")
             if x:
                 uni[f"retuned_{v}_Δacc"] = x["acc"] - tb2["acc"]
