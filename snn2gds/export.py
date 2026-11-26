@@ -62,14 +62,14 @@ def _hex_lines(bits: np.ndarray) -> list[str]:
 
 def run_export(cfg: Config):
     out = cfg.run_dir
-    n_in, n_out = datasets.N_INPUTS[cfg.dataset], datasets.N_CLASSES[cfg.dataset]
+    n_in, n_out = datasets.n_inputs(cfg.dataset, cfg.bias_step), datasets.N_CLASSES[cfg.dataset]
     model = SNN(cfg, n_in, n_out)
     model.load_state_dict(torch.load(out / "model.pt", map_location="cpu"))
     model.eval()
     ex = extract(model, cfg)
     Ws = [l["W"] for l in ex["layers"]]
 
-    _, (xte, yte) = datasets.load(cfg.dataset, cfg.T)
+    _, (xte, yte) = datasets.load(cfg.dataset, cfg.T, cfg.bias_step)
     x = xte.transpose(1, 0, 2)                       # [T, N, C]
     int_spk, overflow = int_forward(x, Ws, ex["theta_int"], ex["k"], ex["bu"])
     with torch.no_grad():

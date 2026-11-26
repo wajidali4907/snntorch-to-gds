@@ -1,314 +1,311 @@
-# snn2gds — snnTorch to ASIC
+# snn2gds: snnTorch to ASIC
 
-ECE 210 (Brain-Inspired Machine Learning, UCSC, Fall 2026) research project.
-Wajid Ali · Jayaraj Jayakumar · Manish Pragaladan. Proposal: [`ECE210_Project_Fall26.pdf`](ECE210_Project_Fall26.pdf).
-
-`snn2gds` takes a trained **snnTorch** model and produces a verified **ASAP7 layout**:
+`snn2gds` takes a spiking neural network trained in [snnTorch](https://github.com/jeshraghian/snntorch) and turns it
+into a digital circuit on the ASAP7 7 nm kit. It checks that the circuit gives the same spikes as the trained model,
+and it measures the circuit area with OpenROAD.
 
 ```
-snnTorch train ──► extract w, β, θ ──► emit Verilog ──► Verilator ──► OpenROAD (ASAP7)
-(quantized, β=1-2^-k)   (integers)    (weights as      spike match     area / timing / power
-                                       constants)      (must be 100%)        │
-        ▲                                                                    │
-        └──────────── calibrate c0, c1 of the silicon-aware loss ◄───────────┘
+train (snnTorch) -> export integer weights -> generate Verilog -> simulate and check spikes -> synthesize (area) -> layout (GDS)
 ```
 
-Research question: can the chip be made smaller by changing the weights during training?
-Each dataset is trained three ways (`qat`, `qat_prune`, `qat_silicon`), and we compare area at equal accuracy.
+What it supports:
+
+- Fully connected networks with one or more hidden layers of leaky integrate-and-fire (LIF) neurons.
+- 8-bit weights that are built into the logic as constants (no multiplier, no weight memory).
+- Three training methods: quantization-aware training (QAT), magnitude pruning, and weight penalties (L1 and power-of-two).
+- Three datasets out of the box: Yin-Yang, Braille and N-TIDIGITS.
+
+ECE 210 (Brain-Inspired Machine Learning), UC Santa Cruz, Fall 2026.
+Wajid Ali, Jayaraj Jayakumar, Manish Pragaladan.
 
 ---
 
-## Status
+## 1. Requirements
 
-| Piece | State |
-|---|---|
-| Quantized snnTorch training (`snn.Leaky`, β = 1-2^-k, floor state quantizer, fake-quant weights) | ✅ |
-| Export to integers + bit-exact NumPy reference | ✅ snnTorch == integer model, 100% spike match |
-| Verilog generator (weights as constants, P = N_in) + self-checking testbench | ✅ |
-| RTL spike match in Verilator and Icarus | ✅ 100% on every layer and step; a corrupted weight is caught |
-| OpenROAD-flow-scripts (ASAP7) synth + place & route through global route | ✅ detailed route runs out of memory on 16 GB, see Results |
-| Area calibration of Eq. (2) | ✅ runs; finding below |
-| Datasets: Yin-Yang, Braille, N-TIDIGITS (download + loaders) | ✅ |
-| Pruning and silicon-aware training modes | ✅ Yin-Yang sweep done: −22% area at equal accuracy, see Results |
-| Experiment sweep + accuracy-vs-area plot | ✅ script, not run yet |
-| P < N_in (time-multiplexed synapse adder) | ⬜ TODO |
+- Linux, Python 3.10 or newer, and a C++ compiler.
+- A built copy of [OpenROAD-flow-scripts](https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts) (ORFS).
+  It provides Yosys, OpenROAD and the ASAP7 kit.
+- A GPU makes training faster but is not required.
+- About 16 GB of RAM for synthesis of the larger networks.
 
-Baseline results so far are in [Results](#results).
-
----
-
-## Setup
-
-Requirements: Linux, Python ≥ 3.10, a C++ compiler, and a built
-[OpenROAD-flow-scripts](https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts) (ORFS).
-A GPU helps but isn't required.
+## 2. Setup
 
 ```bash
-git clone <this repo> && cd Snntorch_to_asic
-make setup                     # .venv + torch + snnTorch + tonic; builds Verilator 5.030 into tools/ if missing
-# CPU-only machine:  TORCH_CUDA=cpu make setup
+git clone git@github.com:wajidali4907/snntorch-to-gds.git
+cd snntorch-to-gds
+make setup                    # creates .venv, installs torch, snnTorch and tonic, builds Verilator if it is missing
+# on a machine without a GPU:
+TORCH_CUDA=cpu make setup
 ```
 
-### OpenROAD-flow-scripts (external repo, not vendored)
+### Point the tool to OpenROAD-flow-scripts
 
-ORFS is large and takes about an hour to build, so we point to it instead of copying it.
-`snn2gds` looks for it in this order:
+ORFS is large, so it is not copied into this repository. `snn2gds` looks for it in this order:
 
-1. `$ORFS_HOME`
-2. `third_party/OpenROAD-flow-scripts` (git submodule pinned to ORFS commit `e5346a7`, which the results were made with)
+1. the environment variable `ORFS_HOME`
+2. `third_party/OpenROAD-flow-scripts` (a git submodule)
 3. `~/OpenROAD-flow-scripts`
 
 ```bash
 # option A: you already have a built ORFS
 export ORFS_HOME=/path/to/OpenROAD-flow-scripts
 
-# option B: use the pinned submodule and build it
+# option B: use the submodule and build it (takes about an hour)
 git submodule update --init --depth 1 third_party/OpenROAD-flow-scripts
-cd third_party/OpenROAD-flow-scripts && ./build_openroad.sh --local    # see ORFS docs
-
-# option C: ORFS docker image (see ORFS docs), then set ORFS_HOME inside the container
+cd third_party/OpenROAD-flow-scripts && ./build_openroad.sh --local
 ```
 
-Tool versions used: OpenROAD `v2.0-27655-gf9a6acaf77`, Yosys 0.60 (both from ORFS), Verilator 5.030,
-Icarus Verilog 12, torch 2.11 + CUDA 12.8, snnTorch 1.0.0, tonic 1.7.
-
-Headless note: if ORFS crashes at the end of `6_report` with no `$DISPLAY`, guard the `gui::show` call in
-`flow/scripts/final_report.tcl` with `[info exists ::env(DISPLAY)]` (our local ORFS has this one-line patch).
+If ORFS stops at the end of the report step on a machine without a display, run the flow with
+`env -u DISPLAY`, or guard the `gui::show` call in `flow/scripts/final_report.tcl` with
+`[info exists ::env(DISPLAY)]`.
 
 ---
 
-## Quick start
+## 3. Quick start
+
+Run the whole flow for the small Yin-Yang network (about 10 minutes):
 
 ```bash
-make flow CFG=configs/yinyang.yaml          # train -> export -> rtl -> sim -> synth -> report  (~10 min)
-make grt  CFG=configs/yinyang.yaml          # place & route up to global route (~15 min)
-make pnr  CFG=configs/yinyang.yaml          # full flow incl. detailed route (needs >16 GB RAM today)
+make flow CFG=configs/yinyang.yaml
 ```
 
-Each step can be run on its own, and any config key can be overridden on the command line:
+This runs six steps: train, export, rtl, sim, synth, report. When it finishes, look at
+`runs/yinyang_qat/summary.json`. The main numbers are:
+
+| Key | Meaning |
+|---|---|
+| `export.acc_int` | test accuracy of the integer model (this is the accuracy of the circuit) |
+| `export.weights` | number of zero, power-of-two and other weights |
+| `sim.spike_match` | `true` if every spike of the circuit matched the model |
+| `pnr_synth.synth_area_um2` | standard-cell area after synthesis, in µm² |
+
+---
+
+## 4. Running the steps one by one
 
 ```bash
-.venv/bin/python -m snn2gds train  configs/yinyang.yaml name=yy_bw6 quant.bw=6 train.epochs=10
-.venv/bin/python -m snn2gds export configs/yinyang.yaml name=yy_bw6
-.venv/bin/python -m snn2gds rtl    configs/yinyang.yaml name=yy_bw6
-.venv/bin/python -m snn2gds sim    configs/yinyang.yaml name=yy_bw6 --sim iverilog
-.venv/bin/python -m snn2gds synth  configs/yinyang.yaml name=yy_bw6     # ORFS synth only, minutes
-.venv/bin/python -m snn2gds pnr    configs/yinyang.yaml name=yy_bw6     # ORFS full flow
-.venv/bin/python -m snn2gds report configs/yinyang.yaml name=yy_bw6     # -> runs/yy_bw6/summary.json
+PY=.venv/bin/python
+$PY -m snn2gds train  configs/yinyang.yaml     # train in snnTorch
+$PY -m snn2gds export configs/yinyang.yaml     # weights -> integers, and check snnTorch == integer model
+$PY -m snn2gds rtl    configs/yinyang.yaml     # generate Verilog and a testbench
+$PY -m snn2gds sim    configs/yinyang.yaml     # simulate (Verilator) and compare every spike
+$PY -m snn2gds synth  configs/yinyang.yaml     # synthesis only (minutes) -> area
+$PY -m snn2gds report configs/yinyang.yaml     # collect everything into runs/<name>/summary.json
 ```
 
-Experiments (Section 5) and calibration:
+Place and route:
 
 ```bash
-.venv/bin/python -m snn2gds.calibrate --jobs 4             # -> runs/calib/calibration.json
-.venv/bin/python scripts/run_experiments.py configs/yinyang.yaml --calib runs/calib/calibration.json
-.venv/bin/python scripts/run_experiments.py configs/braille.yaml --pnr   # add full P&R
-# -> results/<dataset>.csv, results/<dataset>_acc_vs_area.png
+$PY -m snn2gds grt configs/yinyang.yaml        # place and route up to global routing
+$PY -m snn2gds pnr configs/yinyang.yaml        # full flow to the final layout (GDS)
+```
+
+`sim` uses Verilator by default. Add `--sim iverilog` to use Icarus Verilog.
+
+### Changing settings from the command line
+
+Any setting in the config file can be changed with `key=value` after the config name.
+Use `name=...` to give the run its own folder under `runs/`.
+
+```bash
+$PY -m snn2gds train configs/yinyang.yaml name=yy_test train.epochs=10 hidden=64
+```
+
+The same works with `make`:
+
+```bash
+make flow CFG=configs/yinyang.yaml ARGS="name=yy_test train.epochs=10"
 ```
 
 ---
 
-## Repository layout
+## 5. Training methods
 
-```
-configs/              one YAML per dataset (quant, training, hardware settings)
-snn2gds/
-  config.py           dataclass config + YAML loading + dotted overrides
-  datasets.py         Yin-Yang (generated), Braille (Zenodo), N-TIDIGITS (tonic) -> [N, T, C] spikes
-  quant.py            STE quantizers, snnTorch state quantizer, bit-exact integer reference
-  model.py            plain snnTorch net: Linear(no bias) -> snn.Leaky -> Linear -> snn.Leaky
-  train.py            qat | qat_prune | qat_silicon (Eq. 2)
-  export.py           read w, β, θ out of the snnTorch modules; check snnTorch == integer model
-  rtlgen.py           Verilog: synapse sums with constant weights, layers, top, testbench
-  sim.py              Verilator (default) or Icarus; checks every spike of every layer
-  pnr.py              writes ORFS config.mk / SDC, runs ORFS, collects metrics
-  calibrate.py        synthesizes test layers and fits c0, c1 of Eq. 2
-  report.py           merges metrics into runs/<name>/summary.json
-rtl/snn_lif.v         hand-written LIF neuron (copied into every generated design)
-scripts/              setup.sh, install_verilator.sh, run_experiments.py
-third_party/          ORFS submodule pointer (not checked out by default)
-data/  runs/  tools/  generated, git-ignored
+The method is chosen with `train.method`. All three train with 8-bit weights.
+
+### QAT (baseline)
+
+```bash
+make flow CFG=configs/braille.yaml ARGS="name=br_qat"
 ```
 
-Each run writes everything under `runs/<name>/`:
-`model.pt`, `train_log.json`, `export.json`, `ref/` (stimuli + expected spikes), `rtl/`, `sim/`,
-`orfs/` (config.mk, SDC, and ORFS `work/` with logs, reports, results, final `6_final.gds`), and `metrics_*.json`.
+### Pruning
+
+Halfway through training, the smallest weights in each layer are set to zero and stay zero.
+
+```bash
+make flow CFG=configs/braille.yaml ARGS="name=br_prune50 train.method=qat_prune train.prune_frac=0.5"
+```
+
+### L1 penalty
+
+Adds the sum of the absolute weights to the loss. It pushes weights toward zero, and a zero weight needs no hardware.
+`train.lam` sets the strength (larger saves more area and costs more accuracy).
+
+```bash
+make flow CFG=configs/braille.yaml ARGS="name=br_l1 train.method=qat_silicon train.lam=3 train.c0=0.0734 train.c1=0"
+```
+
+### L1 penalty plus a power-of-two term
+
+Adds a second term that pushes each weight toward the nearest power of two.
+`train.lam_p2` sets its strength and `train.p2_mode=log` selects the form `sin²(π·log2|w|)`.
+
+```bash
+make flow CFG=configs/yinyang.yaml \
+  ARGS="name=yy_l1_p2 train.method=qat_silicon train.lam=3 train.c0=0.0734 train.lam_p2=1 train.c1=0.0734 train.p2_mode=log"
+```
+
+The loss is `task loss + (lam · c0 · Σ|w| + lam_p2 · c1 · Σ d(w)) / N_w`, with the weights in integer units.
 
 ---
 
-## How the flow works
+## 6. Config file
 
-### Fixed-point neuron (bit-exact across snnTorch, NumPy, and RTL)
+One YAML file per dataset is in `configs/`. Example:
 
-All integers are in units of 2^-f. Weights: `w_int = clamp(round(w·2^f), ±2^(bw-1))`, threshold
-`θ_int = round(θ·2^f)`, membrane a `bu`-bit two's-complement register. Per time step:
-
+```yaml
+name: yinyang_qat          # run folder: runs/yinyang_qat
+dataset: yinyang           # yinyang | braille | ntidigits
+T: 100                     # time steps per sample
+hidden: 128                # one hidden layer, or a list such as [256, 256]
+n_verify: 200              # test samples replayed in the Verilog simulation
+quant: {bw: 8, f: 4, bu: 16, k: 5, theta: 1.0}
+train: {epochs: 30, batch_size: 128, lr: 0.002, method: qat, init_gain: 6.0}
+hw: {clk_period_ps: 1000, core_utilization: 40, place_density: 0.6}
 ```
-s_prev = U > θ_int
-U      = U + ((-U) >>> k) + Σ_i w_ji·s_i[t] − θ_int·s_prev      # (-U)>>>k == −ceil(U/2^k)
-spike  = U > θ_int
-```
 
-This is exactly what `snn.Leaky(beta=1-2**-k, reset_mechanism="subtract", state_quant=floor_to_2^-f)` computes
-in snnTorch 1.0 (default `reset_delay=True`, strict `>` in the surrogate's forward pass). The leak comes out as
-`U − ceil(U/2^k)` instead of `U − floor(U/2^k)` because snnTorch floors after `β·U`; the RTL matches that.
-`export` checks the match on the whole test set and flags any membrane overflow of `bu` bits.
+| Setting | Meaning |
+|---|---|
+| `quant.bw` | weight bits (signed) |
+| `quant.f` | fractional bits: the stored integer is `round(w · 2^f)` |
+| `quant.bu` | membrane register bits |
+| `quant.k` | leak: `beta = 1 - 2^-k`, built as a shift and a subtract |
+| `quant.theta` | firing threshold |
+| `bias_step` | `0` adds one extra input that spikes at the first time step and acts as a bias; `-1` turns it off |
+| `train.method` | `qat`, `qat_prune` or `qat_silicon` |
+| `train.prune_frac` | share of weights set to zero (`qat_prune`) |
+| `train.lam`, `train.lam_p2` | strength of the L1 term and of the power-of-two term (`qat_silicon`) |
+| `train.init_gain` | scales the starting weights (sparse spike inputs need larger weights) |
+| `train.loss` | `count` (cross-entropy on output spike counts) or a membrane loss |
+| `train.seed` | random seed |
+| `hw.clk_period_ps` | clock period for synthesis and layout |
+| `hw.core_utilization`, `hw.place_density` | layout density settings |
+| `hw.num_cores` | threads for OpenROAD (fewer threads use less memory) |
 
-### Hardware (current: P = N_in)
-
-- `snn_top_syn<l>`: for each neuron, `I_j = Σ (s_i ? w_ji : 0)` with the trained weights as Verilog constants.
-  Zero weights are left out; Yosys/ABC builds only what the constants need.
-- `snn_lif`: membrane register, shift-leak, compare, subtract-reset. No multipliers, no SRAM.
-- Layers are pipelined one cycle apart; one input time step per clock.
-- Top: `clear`, `in_valid`, `in_spikes[N_in]` in; `out_spikes`, per-class spike `out_counts`, `done` out.
-  The class is the argmax of the counts (done in software for now).
-
-### Verification
-
-`export` saves the input spikes of `n_verify` test samples and the integer model's spikes for every layer at every
-step. The generated `tb.v` replays them and compares **every spike of every layer**. It prints
-`SPIKE_MATCH PASS` or the first mismatches. It also dumps the output counts, so `sim` reports RTL accuracy.
-
-### Physical design
-
-`pnr.py` writes `runs/<name>/orfs/config.mk` (ASAP7, `CORE_UTILIZATION`, `PLACE_DENSITY`) and
-`constraint.sdc` (`hw.clk_period_ps`), then runs ORFS with `WORK_HOME=runs/<name>/orfs/work`, so the ORFS tree
-is never modified. Flow settings are fixed in the config so only the model changes between runs.
+The full list with comments is in `snn2gds/config.py`.
 
 ---
 
-## Datasets
+## 7. What a run produces
 
-| Dataset | Source | Encoding (T = 100) | Split |
+Everything for one run is written to `runs/<name>/`:
+
+| File or folder | Content |
+|---|---|
+| `config.yaml` | the exact settings of the run |
+| `model.pt`, `train_log.json` | trained model and training log |
+| `export.json` | integer weights, leak and threshold |
+| `ref/` | input spikes and expected spikes for the testbench |
+| `rtl/` | generated Verilog and testbench |
+| `sim/` | simulation build and log |
+| `orfs/` | synthesis and layout files, logs and reports (final layout: `6_final.gds`) |
+| `metrics_*.json`, `summary.json` | numbers from each step, and all of them together |
+
+`runs/`, `data/` and `tools/` are created by the tool and are not tracked in git.
+
+---
+
+## 8. How the check works
+
+1. `export` turns the trained weights into integers and builds a bit-exact integer model of the circuit.
+   It checks that this model gives the same spikes as snnTorch on the test set, and it flags any membrane overflow.
+2. `sim` replays `n_verify` test samples through the generated Verilog and compares **every spike of every layer at
+   every time step** with the integer model. It prints `SPIKE_MATCH PASS`, or the first mismatches.
+
+The accuracy that is reported is the accuracy of the integer model on the full test set.
+
+---
+
+## 9. Final layout (GDS)
+
+`pnr` runs placement, clock-tree synthesis, routing and writes the GDS. For the Yin-Yang network we relax the clock
+and use fewer threads so that routing fits in 16 GB:
+
+```bash
+env -u DISPLAY .venv/bin/python -m snn2gds pnr runs/<name>/config.yaml name=<new_name> hw.clk_period_ps=1500 hw.num_cores=4
+```
+
+`scripts/gds_yinyang.sh` does this for three trained Yin-Yang runs. `scripts/render_gds.py` and
+`scripts/or_screenshot.tcl` save pictures of the finished layouts.
+
+---
+
+## 10. Experiment scripts
+
+These scripts run many settings and seeds. Each one skips runs that are already finished, so it is safe to restart.
+
+| Script | What it does |
+|---|---|
+| `scripts/overnight.py` | tunes the learning rate and starting weight size on a validation split, then trains QAT, pruning and L1 with 3 seeds and runs the full flow for each |
+| `scripts/prune_extra.py` | adds 70% and 80% pruning |
+| `scripts/extra_lambda.py`, `scripts/l1_strong.py` | add stronger L1 settings |
+| `scripts/yy_balanced.py` | L1 plus the power-of-two term at several strengths on Yin-Yang |
+| `scripts/pow2_experiment.py` | hardware test with no training: layers that differ only in the share of power-of-two weights |
+| `scripts/plot_pow2_area.py` | plots the result of that test |
+| `scripts/compare.py` | table and plot of accuracy against area for a set of runs |
+
+```bash
+.venv/bin/python scripts/overnight.py --dry      # show what would run
+.venv/bin/python scripts/overnight.py            # run it (hours)
+.venv/bin/python scripts/pow2_experiment.py      # controlled power-of-two test
+.venv/bin/python scripts/compare.py yinyang_qat 'yy_*'
+```
+
+Results of these scripts are written to `results/`.
+
+---
+
+## 11. Datasets
+
+| Dataset | Source | Inputs | Classes |
 |---|---|---|---|
-| Yin-Yang | generated (re-implementation of Kriener et al. 2022) | 4 inputs (x, y, 1-x, 1-y), one latency spike each | 5000 / 1000, seeds 42 / 40 |
-| Braille | Zenodo [7050094](https://zenodo.org/records/7050094), `data_braille_letters_th_1.pkl` | 12 taxels × ON/OFF = 24 ch, 1.25 s window | random 80/20 (seed 0) |
-| N-TIDIGITS | tonic `NTIDIGITS18` (441 MB hdf5), single digits | 64 cochlea channels, 1.4 s window (99th pct. length) | official 2463 / 2486 |
+| Yin-Yang | generated by the tool (after Kriener et al., 2022) | 4 (x, y, 1-x, 1-y), one spike each | 3 |
+| Braille | Zenodo record 7050094 (Müller-Cleve et al., 2022) | 12 taxels × ON/OFF = 24 | 27 |
+| N-TIDIGITS | `tonic` `NTIDIGITS18`, single digits | 64 cochlea channels | 11 |
 
-Downloads happen on first use into `data/`; the binned tensors are cached as `data/<name>_T<T>.npz`.
-The Braille and N-TIDIGITS files are pickle/hdf5 from the dataset authors; only load copies from those sources.
-
----
-
-## Results
-
-_Baseline (`qat`), filled in from the runs in this repo; see `runs/<name>/summary.json`._
-
-**Yin-Yang, 4 → 128 → 3, T = 100, bw = 8, f = 4, k = 5, ASAP7, clock 1000 ps**
-
-| Metric | `yinyang_qat` (30 epochs) | `yy_smoke` (8 epochs) |
-|---|---|---|
-| Test accuracy (snnTorch = integer model) | 80.0% | 81.7% |
-| RTL spike match (200 samples, every layer and step) | 100% | 100% |
-| Weights: zero / power-of-two / other | 27 / 232 / 637 | 24 / 254 / 618 |
-| Synthesis cell area | 4,262 µm² (33.8k cells) | 4,306 µm² (34.3k cells) |
-| After global route: std-cell area | not run | **4,806 µm²** (utilization 44.8%, core 10,722 µm²) |
-| After global route: setup WNS | not run | −191 ps (about 840 MHz reachable) |
-| After global route: wirelength / power | not run | 174.6 mm / 0.22 W |
-
-Area after global route is about 12% above synthesis area, because of timing-repair buffers and the clock tree.
-
-**Detailed routing doesn't finish on a 16 GB machine yet.** The router used about 12–13 GB at 8 and 20 threads,
-starting with about 4.9k violations mostly on M1/M2, and was killed or stopped. Until that's fixed, use
-`python -m snn2gds grt ...`, which stops after global routing. Things to try: lower `hw.place_density` and
-`hw.core_utilization`, use `hw.num_cores=4`, or run detailed routing on a larger-memory machine.
-
-### Area reduction: pruning vs. silicon-aware training (Yin-Yang)
-
-One run per point, seed 0, 30 epochs, synthesis area (ASAP7). Every model passes the 100% RTL spike match.
-Reproduce with `scripts/sweep_yinyang.sh` and then `scripts/compare.py yinyang_qat 'yy_*'`.
-
-| Run | Method | Accuracy | Δ acc (pts) | Weights zero / pow2 / other | Area (µm²) | Area saving |
-|---|---|---|---|---|---|---|
-| `yinyang_qat` | baseline QAT | 80.0% | — | 27 / 232 / 637 | 4,262 | — |
-| `yy_prune0.5` | QAT + 50% pruning | 73.1% | −6.9 | 448 / 73 / 375 | 3,568 | 16.3% |
-| `yy_prune0.7` | QAT + 70% pruning | 60.6% | −19.4 | 627 / 32 / 237 | 2,587 | 39.3% |
-| `yy_prune0.9` | QAT + 90% pruning | 36.6% | −43.4 | 805 / 6 / 85 | 1,029 | 75.8% |
-| `yy_l1_0.3` | silicon-aware, zero term only, λ = 0.3 | 81.1% | +1.1 | 111 / 185 / 600 | 3,522 | 17.4% |
-| `yy_l1_1` | silicon-aware, zero term only, λ = 1 | 82.2% | +2.2 | 143 / 200 / 553 | 3,469 | 18.6% |
-| `yy_l1_3` | silicon-aware, zero term only, λ = 3 | 80.4% | +0.4 | 204 / 199 / 493 | 3,312 | **22.3%** |
-| `yy_l1_10` | silicon-aware, zero term only, λ = 10 | 74.2% | −5.8 | 319 / 173 / 404 | 2,933 | 31.2% |
-| `yy_eq2_1` | silicon-aware, full Eq. 2 (c1 = c0), λ = 1 | 79.4% | −0.6 | 53 / 332 / 511 | 4,198 | 1.5% |
-| `yy_eq2_3` | silicon-aware, full Eq. 2 (c1 = c0), λ = 3 | 80.7% | +0.7 | 81 / 361 / 454 | 4,220 | 1.0% |
-
-![accuracy vs area](results/compare_yinyang.png)
-
-What these runs show:
-- **Silicon-aware training reduces area by 22% with no accuracy loss** (λ = 3). At about −6 accuracy points it saves
-  31%, while 50% pruning saves 16% for −6.9 points. Its curve lies above and to the left of pruning's.
-- Pruning saves more area than the per-weight count model predicts. When every input of a hidden neuron is zero,
-  synthesis removes the whole neuron.
-- The power-of-two term of Eq. 2, as written, barely reduces area (1–1.5%). It raises the number of power-of-two
-  weights, but it also pulls weights away from zero, because the nearest power of two is never zero. This agrees
-  with the negative c1 from calibration below.
-
-Caveats: one seed per point, so differences of about ±2 accuracy points are noise. These are synthesis areas, not
-post-layout areas. Yin-Yang is the bring-up dataset, and the 128 neurons dominate its area.
-
-### Separate lambdas for the two Eq. 2 terms (Yin-Yang)
-
-The two terms now have separate weights: `train.lam` (λ0, zero term) and `train.lam_p2` (λ1, power-of-two term).
-`train.p2_zero=true` replaces `nearest_pow2`, which can return fractional powers such as 0.25 that integer hardware
-can't use, with `nearest_cheap`, which returns the nearest of 0, ±1, ±2, ±4, …. In these runs λ0 = 3 is fixed and
-λ1 is swept (`scripts/sweep_yinyang_lam2.sh`).
-
-| λ1 | p2 target | Accuracy | Zero / pow2 / other | Area (µm²) | Saving |
-|---|---|---|---|---|---|
-| 0 (zero term only, `yy_l1_3`) | — | 80.4% | 204 / 199 / 493 | 3,312 | 22.3% |
-| 0.03 | original | 83.8% | 199 / 192 / 505 | 3,273 | 23.2% |
-| 0.1 | original | 74.6% | 200 / 192 / 504 | 3,298 | 22.6% |
-| 0.3 | original | 82.0% | 190 / 204 / 502 | 3,350 | 21.4% |
-| 1 | original | 80.8% | 131 / 212 / 553 | 3,944 | 7.4% |
-| 0.03 | incl. 0 | 80.3% | 205 / 186 / 505 | 3,301 | 22.5% |
-| 0.1 | incl. 0 | 83.1% | 203 / 189 / 504 | 3,284 | 22.9% |
-| 0.3 | incl. 0 | 82.6% | 189 / 198 / 509 | 3,290 | 22.8% |
-| 1 | incl. 0 | 82.1% | 131 / 213 / 552 | 3,946 | 7.4% |
-
-What these runs show:
-- Separate lambdas stop the power-of-two term from cancelling the zero savings. With λ1 ≤ 0.3, area stays at
-  21–23% below baseline, against 1–1.5% when λ1 = λ0. They don't add savings beyond the zero term alone.
-- At λ1 = 1 the savings drop to 7% with either p2 target. The power-of-two term holds weights near ±1 that the
-  zero term would otherwise drive to 0. A power-of-two weight saves about 0.4 µm² (1.04 − 0.65) relative to an
-  "other" weight, while a zero saves about 1 µm² and can remove a whole neuron, so the trade isn't worth it.
-- The zero-aware target (`p2_zero`) gives slightly higher accuracy at the same area for λ1 ≤ 0.3. The ±5-point
-  accuracy spread at equal weight counts (e.g. 74.6% vs. 83.8%) shows that single-seed accuracy is noisy.
-- Ideas not tried yet: turn the power-of-two term on only in the last epochs, after the zeros have settled, or
-  apply it only to weights with |w| ≥ 2.
-
-### Calibration finding (Eq. 2)
-
-`snn2gds.calibrate` synthesized 16 single-layer test designs (32 inputs × 16 neurons, mixed zero / power-of-two /
-other weights) and fit `area = a0 + c0·Σ|w| + c1·Σ(w − p2(w))²`:
-
-| fit | result | R² |
-|---|---|---|
-| Eq. 2 features | c0 = 0.073 µm²/unit, **c1 = −0.028** | 0.86 |
-| per-weight counts | zero ≈ 0, power-of-two ≈ **0.65 µm²**, other ≈ **1.04 µm²** (base 486 µm²) | 0.93 |
-
-The count fit supports the premise: a power-of-two weight costs about 60% of an arbitrary one, and a zero weight
-costs nothing. But the squared distance to the nearest power of two grows with the square of the weight's
-magnitude, while area grows roughly with its bit width, so the fitted c1 comes out negative. **Before running the
-`qat_silicon` sweep, decide how to fix Eq. 2**, for example by normalizing the distance (`|w − p2(w)| / |w|`) or by
-using a smooth per-weight indicator. Raw numbers are in `runs/calib/calibration.json`.
+The data is downloaded on first use into `data/`. Events are binned into `T` time steps and cached.
 
 ---
 
-## Roadmap / requirements (to be filled in by the team)
+## 12. Repository layout
 
-- [ ] Decide the fix for the c1 term of Eq. 2 (see above), re-run calibration, then the `qat_silicon` sweep
-- [x] Yin-Yang sweep (`scripts/sweep_yinyang.sh`)
-- [ ] Same sweep with 3 seeds per point; then Braille (first layout), then N-TIDIGITS (main)
-- [ ] Hyperparameter tuning per dataset (epochs, lr, `init_gain`, k, θ, bw, f) to get reasonable baselines
-- [ ] Get detailed routing to fit in 16 GB (lower density/utilization, fewer threads) or run it on a bigger machine
-- [ ] Time-multiplexed synapse (`hw.P < N_in`): area vs. latency trade-off
-- [ ] Hardware argmax / classifier output; optionally power from ORFS (`power_w` is already collected)
-- [ ] Per-layer k / θ in export and RTL (currently shared across layers)
-- [ ] Final plots: accuracy vs. area per dataset for the three methods
-- [ ] _add requirements here_
+```
+configs/         one YAML file per dataset
+snn2gds/
+  config.py      settings and command-line overrides
+  datasets.py    dataset download and spike encoding
+  quant.py       quantizers and the bit-exact integer model
+  model.py       the snnTorch network
+  train.py       qat | qat_prune | qat_silicon
+  export.py      integer weights, and the snnTorch == integer model check
+  rtlgen.py      Verilog and testbench generator
+  sim.py         Verilator or Icarus simulation, spike comparison
+  pnr.py         runs OpenROAD-flow-scripts and collects area and timing
+  calibrate.py   synthesizes small test layers to measure the cost of a weight
+  report.py      writes runs/<name>/summary.json
+rtl/snn_lif.v    the LIF neuron (copied into every generated design)
+scripts/         setup and experiment scripts
+third_party/     pointer to OpenROAD-flow-scripts (submodule)
+```
 
----
+## 13. Limits
 
-## References
+- Only fully connected layers. No convolution, recurrent connections or delays.
+- The leak and the threshold are the same for all neurons and are not learned.
+- The weights are fixed in the circuit, so one chip computes one network.
+- All inputs of a neuron are added in one clock cycle (fully parallel). A time-multiplexed version is not built.
 
-See the proposal PDF. Key tools: snnTorch (Eshraghian et al., Proc. IEEE 2023), OpenROAD / ORFS (Ajayi et al., DAC 2019),
-ASAP7 PDK, Verilator, tonic.
+## Tools
+
+snnTorch, tonic, Verilator, Yosys, OpenROAD and OpenROAD-flow-scripts, and the ASAP7 predictive 7 nm kit.

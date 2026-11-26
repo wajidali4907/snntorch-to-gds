@@ -27,6 +27,8 @@ def main():
         m, e = d / "metrics_pnr_synth.json", d / "export.json"
         if not (m.exists() and e.exists()):
             continue
+        if "in128" in d.name:   # the published fit uses only the 45 layers of size 16x32
+            continue
         W = np.array(json.loads(e.read_text())["layers"][0]["W"])
         rows.append({"run": d.name, "n_nz": int((W != 0).sum()),
                      "p2dist": float(pow2_log_dist(torch.from_numpy(W).double()).sum()),

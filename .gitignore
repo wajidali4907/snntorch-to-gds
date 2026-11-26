@@ -4,3 +4,11 @@ __pycache__/
 data/
 runs/
 tools/
+
+# writing, slides and results are kept out of the code repository
+paper/
+results/
+*.pptx
+*.pdf
+.~lock.*
+EXPERIMENTS.md

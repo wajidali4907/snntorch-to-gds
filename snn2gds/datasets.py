@@ -130,7 +130,25 @@ def load_ntidigits(T):
 
 
 # -------------------------------------------------------------------- common
-def load(name: str, T: int):
+def n_inputs(name: str, bias_step: int = -1) -> int:
+    return N_INPUTS[name] + (1 if bias_step >= 0 else 0)
+
+
+def _add_bias(X, bias_step):
+    """Append one input channel that spikes once, at time step `bias_step`, in every sample."""
+    b = np.zeros(X.shape[:2] + (1,), np.uint8)
+    b[:, bias_step, 0] = 1
+    return np.concatenate([X, b], axis=2)
+
+
+def load(name: str, T: int, bias_step: int = -1):
+    (xtr, ytr), (xte, yte) = _load(name, T)
+    if bias_step >= 0:
+        xtr, xte = _add_bias(xtr, bias_step), _add_bias(xte, bias_step)
+    return (xtr, ytr), (xte, yte)
+
+
+def _load(name: str, T: int):
     cache = DATA / f"{name}_T{T}.npz"
     if cache.exists():
         z = np.load(cache)

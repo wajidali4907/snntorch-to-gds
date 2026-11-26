@@ -40,7 +40,7 @@ class SNN(nn.Module):
         beta = 1.0 - 2.0 ** (-q.k)
         sq = make_state_quant(q.f)
         sg = surrogate.fast_sigmoid(slope=cfg.train.surrogate_slope)
-        sizes = [n_in, cfg.hidden, n_out]
+        sizes = [n_in, *cfg.hidden_sizes, n_out]
         self.fcs = nn.ModuleList()
         self.lifs = nn.ModuleList()
         for a, b in zip(sizes[:-1], sizes[1:]):
@@ -52,13 +52,17 @@ class SNN(nn.Module):
                                        learn_threshold=False, reset_mechanism="subtract",
                                        spike_grad=sg, state_quant=sq if cfg.train.qat else False, init_hidden=False))
 
-    def forward(self, x):
-        """x: [T, B, N_in] -> list of per-layer spike tensors [T, B, N_l]."""
+    def forward(self, x, return_mem=False):
+        """x: [T, B, N_in] -> list of per-layer spike tensors [T, B, N_l].
+        return_mem=True also returns the output layer's membrane [T, B, N_out] (used by the mem_* losses)."""
         mems = [lif.reset_mem() if hasattr(lif, "reset_mem") else lif.init_leaky() for lif in self.lifs]
         recs = [[] for _ in self.lifs]
+        mrec = []
         for t in range(x.shape[0]):
             h = x[t]
             for l, (fc, lif) in enumerate(zip(self.fcs, self.lifs)):
                 h, mems[l] = lif(fc(h), mems[l])
                 recs[l].append(h)
-        return [torch.stack(r) for r in recs]
+            mrec.append(mems[-1])
+        spikes = [torch.stack(r) for r in recs]
+        return (spikes, torch.stack(mrec)) if return_mem else spikes

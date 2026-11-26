@@ -35,6 +35,21 @@ def silicon_cost(model: SNN, c0: float, c1: float, lam0: float = 1.0, lam1: floa
     return total
 
 
+def task_loss(model: SNN, x, y, kind: str) -> torch.Tensor:
+    """Classification loss on the output layer. x: [T, B, N_in]. Inference always uses spike counts."""
+    if kind == "count":
+        return F.cross_entropy(model(x)[-1].sum(0), y)
+    _, mem = model(x, return_mem=True)                  # [T, B, N_out]
+    if kind == "mem_step":
+        T = mem.shape[0]
+        return F.cross_entropy(mem.reshape(-1, mem.shape[-1]), y.repeat(T))
+    if kind == "mem_max":
+        return F.cross_entropy(mem.max(0).values, y)
+    if kind == "mem_mean":
+        return F.cross_entropy(mem.mean(0), y)
+    raise ValueError(f"unknown train.loss {kind!r}")
+
+
 def apply_prune(model: SNN, frac: float):
     for fc in model.fcs:
         w = fc.weight.detach().abs()
@@ -65,7 +80,7 @@ def train(cfg: Config):
     torch.manual_seed(tc.seed)
     rng = np.random.default_rng(tc.seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    (xtr, ytr), (xte, yte) = datasets.load(cfg.dataset, cfg.T)
+    (xtr, ytr), (xte, yte) = datasets.load(cfg.dataset, cfg.T, cfg.bias_step)
     tag = "test_acc"
     if tc.val_frac > 0:   # tuning mode: evaluate on a held-out part of the training set (fixed split)
         perm = np.random.default_rng(12345).permutation(len(xtr))
@@ -73,7 +88,7 @@ def train(cfg: Config):
         xte, yte = xtr[perm[:n_val]], ytr[perm[:n_val]]
         xtr, ytr = xtr[perm[n_val:]], ytr[perm[n_val:]]
         tag = "val_acc"
-    n_in, n_out = datasets.N_INPUTS[cfg.dataset], datasets.N_CLASSES[cfg.dataset]
+    n_in, n_out = datasets.n_inputs(cfg.dataset, cfg.bias_step), datasets.N_CLASSES[cfg.dataset]
     model = SNN(cfg, n_in, n_out).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=tc.lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, tc.epochs)
@@ -91,8 +106,7 @@ def train(cfg: Config):
         for xb, yb in _batches(xtr, ytr, tc.batch_size, True, rng):
             x = torch.from_numpy(xb).float().transpose(0, 1).to(device)
             y = torch.from_numpy(yb).to(device)
-            counts = model(x)[-1].sum(0)
-            loss = F.cross_entropy(counts, y)
+            loss = task_loss(model, x, y, tc.loss)
             if tc.method == "qat_silicon":
                 n_w = sum(fc.weight.numel() for fc in model.fcs)
                 lam1 = tc.lam if tc.lam_p2 < 0 else tc.lam_p2

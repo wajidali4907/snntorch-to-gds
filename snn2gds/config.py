@@ -39,6 +39,11 @@ class TrainCfg:
     init_gain: float = 1.0       # multiply default nn.Linear init (sparse inputs need larger weights)
     val_frac: float = 0.0        # >0: hold out this fraction of the TRAIN set for tuning (logs val_acc,
                                  #     the test set is not used during training)
+    loss: str = "count"          # training loss on the output layer (inference always counts output spikes):
+                                 #   count    = cross-entropy on output spike counts
+                                 #   mem_step = cross-entropy on the output membrane at every step, averaged
+                                 #   mem_max  = cross-entropy on the max-over-time output membrane
+                                 #   mem_mean = cross-entropy on the time-averaged output membrane
 
 
 @dataclass
@@ -55,11 +60,16 @@ class Config:
     name: str = "yinyang_qat"
     dataset: str = "yinyang"     # yinyang | braille | ntidigits
     T: int = 100                 # time steps
-    hidden: int = 128
+    hidden: int | list = 128     # hidden layer size, or a list of sizes for several hidden layers
+    bias_step: int = -1          # >=0: add one extra input channel that spikes once, at this time step
     n_verify: int = 100          # test samples replayed in RTL simulation
     quant: QuantCfg = field(default_factory=QuantCfg)
     train: TrainCfg = field(default_factory=TrainCfg)
     hw: HwCfg = field(default_factory=HwCfg)
+
+    @property
+    def hidden_sizes(self) -> list:
+        return list(self.hidden) if isinstance(self.hidden, (list, tuple)) else [self.hidden]
 
     @property
     def run_dir(self) -> Path:

@@ -1,9 +1,0 @@
-{
- "base_um2": 527.5615181678953,
- "c_nz_um2_per_nonzero_weight": 0.5309410063806415,
- "c_p2_um2_per_nonpow2_weight": 1.228079165629742,
- "r2": 0.9958549251697699,
- "n_runs": 45,
- "max_abs_err_um2": 25.00946580980542,
- "note": "layer 16x32, 8-bit, ASAP7 ORFS synth, clock 1000 ps; pow2 distance = sin^2(pi*log2|w|)"
-}
